@@ -1,0 +1,6 @@
+opencv-python
+python-dotenv
+tensorflow
+numpy
+spotipy
+streamlit
