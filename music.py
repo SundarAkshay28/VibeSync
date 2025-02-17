@@ -6,6 +6,8 @@ from spotipy.oauth2 import SpotifyOAuth
 import streamlit as st
 from dotenv import load_dotenv
 import os
+
+# Load environment variables
 load_dotenv()
 st.title("Emotion Detection with Telugu Song Recommendations")
 
@@ -22,6 +24,19 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
     scope="user-library-read user-read-playback-state user-modify-playback-state"
 ))
 
+# Load pre-trained model
+model = load_model('facial_expression.h5')
+
+emotion_labels = {
+    0: 'angry',
+    1: 'disgust',
+    2: 'fear',
+    3: 'happy',
+    4: 'sad',
+    5: 'surprise',
+    6: 'neutral'
+}
+
 def get_recommended_telugu_tracks(emotion):
     mood_to_genre_telugu = {
         'happy': 'Telugu upbeat',
@@ -36,20 +51,8 @@ def get_recommended_telugu_tracks(emotion):
     results = sp.search(q=f'{genre}', type='track', limit=5, market='IN')
     return [track['name'] + ' - ' + track['artists'][0]['name'] for track in results['tracks']['items']]
 
-model = load_model('facial_expression.h5')
-
-emotion_labels = {
-    0: 'angry',
-    1: 'disgust',
-    2: 'fear',
-    3: 'happy',
-    4: 'sad',
-    5: 'surprise',
-    6: 'neutral'
-}
-
-def predict_emotion(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+def predict_emotion(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     face = cv2.resize(gray, (48, 48))
     face = face.reshape(1, 48, 48, 1) / 255.0
     predictions = model.predict(face)
@@ -57,34 +60,27 @@ def predict_emotion(frame):
     return emotion_labels[emotion_index]
 
 def main():
-    st.write("Starting webcam... Press 'q' to exit.")
-    cap = cv2.VideoCapture(0)
+    st.write("Upload an image to detect emotion and get Telugu song recommendations.")
 
-    if not cap.isOpened():
-        st.error("Could not open webcam")
-        return
+    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
-    frame_placeholder = st.empty()
+    if uploaded_file is not None:
+        # Convert file to OpenCV format
+        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+        # Display uploaded image
+        st.image(image, caption="Uploaded Image", use_column_width=True)
 
-        emotion = predict_emotion(frame)
-        st.write(f"Detected Emotion: {emotion}")
+        # Predict emotion
+        emotion = predict_emotion(image)
+        st.write(f"**Detected Emotion:** {emotion}")
 
+        # Get recommended Telugu songs
         telugu_tracks = get_recommended_telugu_tracks(emotion)
-        st.write(f"Recommended Telugu Songs for {emotion}: {telugu_tracks}")
-
-        # Convert the frame color for Streamlit display
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_placeholder.image(frame_rgb, channels='RGB', use_column_width=True)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
+        st.write(f"**Recommended Telugu Songs for {emotion}:**")
+        for track in telugu_tracks:
+            st.write(f"- {track}")
 
 if __name__ == '__main__':
     main()
