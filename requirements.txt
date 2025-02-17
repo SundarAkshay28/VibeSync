@@ -1,6 +1,6 @@
 opencv-python
-python-dotenv
-tensorflow
 numpy
+tensorflow
 spotipy
 streamlit
+python-dotenv
